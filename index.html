@@ -73,19 +73,25 @@
   .brand { display:flex; align-items:center; gap:11px; }
   .brand-mark {
     font-size:13px; font-weight:800; letter-spacing:.5px;
-    color: var(--ink); background: linear-gradient(135deg, var(--aqua), var(--mizu));
+    color: var(--ink); background: var(--mizu);
     padding:7px 9px; border-radius:11px; line-height:1;
-    box-shadow: 0 6px 16px -6px var(--aqua);
+    box-shadow: 0 6px 16px -6px var(--mizu);
   }
   .brand-text h1 { font-size:18px; font-weight:800; letter-spacing:-0.2px; }
   .brand-sub { font-size:10px; color: var(--txt-faint); letter-spacing:2px; margin-top:2px; }
-  .year-switch { display:flex; gap:4px; background: var(--panel); border:1px solid var(--line); padding:4px; border-radius:13px; }
-  .year-switch button {
+  .year-nav { display:flex; align-items:center; gap:2px; background: var(--panel); border:1px solid var(--line); padding:4px; border-radius:13px; }
+  .year-nav button {
     border:none; background:transparent; color:var(--txt-dim);
-    font-family:var(--font); font-size:13px; font-weight:700;
-    padding:6px 10px; border-radius:9px; cursor:pointer; transition:.2s;
+    font-family:var(--font); font-size:14px; font-weight:700;
+    padding:6px 9px; border-radius:9px; cursor:pointer; transition:.15s;
+    display:flex; align-items:center; justify-content:center;
   }
-  .year-switch button.active { background: linear-gradient(135deg,var(--aqua),var(--mizu)); color:var(--ink); }
+  .year-nav button:disabled { opacity:.25; cursor:not-allowed; }
+  .year-nav .year-current {
+    font-weight:800; color: var(--ink); background: var(--aqua);
+    padding:6px 12px; border-radius:9px; font-variant-numeric:tabular-nums;
+    min-width:54px; text-align:center; font-size:13px;
+  }
 
   .hero { padding:22px 22px 24px; margin-bottom:14px; }
   .hero-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; }
@@ -111,6 +117,13 @@
   .progress-meta #progressPct { font-weight:800; font-variant-numeric:tabular-nums; }
   .remain { color:var(--txt-dim); font-weight:600; }
   .remain.over { color:var(--red); }
+  .year-compare { margin-top:14px; padding-top:13px; border-top:1px dashed var(--line); display:flex; align-items:center; gap:8px; font-size:11px; }
+  .yc-label { color:var(--txt-faint); font-weight:600; }
+  .yc-value { font-weight:800; font-variant-numeric:tabular-nums; }
+  .yc-value.up { color: var(--amber); }
+  .yc-value.down { color: var(--good); }
+  .yc-value.flat { color: var(--txt-dim); }
+  .yc-delta { color: var(--txt-faint); font-variant-numeric:tabular-nums; margin-left:auto; }
 
   .stat-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px; }
   .stat { padding:16px 16px 15px; display:flex; flex-direction:column; gap:3px; }
@@ -205,6 +218,8 @@
   .save-btn { flex:2; background:linear-gradient(135deg,var(--aqua),var(--mizu)); color:var(--ink); }
   .save-btn:active, .cancel-btn:active { transform:scale(.97); }
   .del-btn { flex:0 0 auto; background:rgba(255,90,90,0.14); color:var(--red); }
+  .dup-btn { flex:0 0 auto; background:rgba(111,211,239,0.14); color:var(--mizu); padding:14px 16px; }
+  .fld-hint { color: var(--txt-faint); font-weight:500; font-size:11px; margin-left:2px; }
   .goal-sheet h3 { margin-bottom:18px; }
 </style>
 </head>
@@ -222,12 +237,16 @@
           <p class="brand-sub">OSHIKATSU KAKEIBO</p>
         </div>
       </div>
-      <div class="year-switch" id="yearSwitch"></div>
+      <div class="year-nav" id="yearNav">
+        <button id="yearPrev" aria-label="前の年">‹</button>
+        <span class="year-current" id="yearCurrent">2026</span>
+        <button id="yearNext" aria-label="次の年">›</button>
+      </div>
     </header>
 
     <section class="hero card" id="heroCard">
       <div class="hero-top">
-        <span class="hero-label">今年（<span id="heroYear">2026</span>年）の推し活支出</span>
+        <span class="hero-label" id="heroLabel">今年（<span id="heroYear">2026</span>年）の支出</span>
         <button class="goal-edit" id="goalEditBtn">目標 <span id="goalLabel">¥1,000,000</span> <span class="pen">✎</span></button>
       </div>
       <div class="hero-amount" id="heroAmount">¥0</div>
@@ -237,6 +256,11 @@
           <span id="progressPct">0%</span>
           <span id="progressRemain" class="remain">目標まで ¥1,000,000</span>
         </div>
+      </div>
+      <div class="year-compare hidden" id="yearCompare">
+        <span class="yc-label" id="ycLabel">前年同期比</span>
+        <span class="yc-value" id="ycValue">—</span>
+        <span class="yc-delta" id="ycDelta">—</span>
       </div>
     </section>
 
@@ -297,11 +321,13 @@
         <label class="fld"><span>単価 (¥)</span><input type="number" id="fPrice" inputmode="numeric" placeholder="0" min="0"></label>
         <label class="fld qty"><span>数量</span><input type="number" id="fQty" inputmode="numeric" value="1" min="1"></label>
       </div>
+      <label class="fld"><span>送料・その他 (¥)<span class="fld-hint">　任意・システム料なども含む</span></span><input type="number" id="fShip" inputmode="numeric" placeholder="0" min="0"></label>
       <label class="fld"><span>日付</span><input type="date" id="fDate"></label>
       <div class="total-preview"><span>合計</span><strong id="totalPreview">¥0</strong></div>
       <div class="sheet-actions">
         <button class="del-btn hidden" id="deleteBtn">削除</button>
         <button class="cancel-btn" id="cancelBtn">キャンセル</button>
+        <button class="dup-btn hidden" id="duplicateBtn">複製</button>
         <button class="save-btn" id="saveBtn">保存</button>
       </div>
     </div>
@@ -339,6 +365,7 @@
     { id: "photo", label: "写真集・雑誌", color: "#8e7bff" },
     { id: "sub",   label: "配信・サブスク", color: "#56c2ff" },
     { id: "trip",  label: "遠征・交通", color: "#ff9d5c" },
+    { id: "flower",label: "お花・ポスター", color: "#e87cc7" },
     { id: "etc",   label: "その他", color: "#9aa0ac" },
   ];
   const catById = id => CATS.find(c => c.id === id) || CATS[CATS.length - 1];
@@ -353,7 +380,7 @@
 
   const yen = n => "¥" + Math.round(n).toLocaleString("ja-JP");
   const fmtMonth = m => parseInt(m, 10) + "月";
-  const entryTotal = e => e.unitPrice * e.qty;
+  const entryTotal = e => e.unitPrice * e.qty + (e.shipping || 0);
   const todayStr = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
 
   function load() {
@@ -370,29 +397,65 @@
   }
   function saveEntries() { sSet(KEY_E, JSON.stringify(entries)); }
 
-  function yearsAvailable() {
-    const set = new Set(entries.map(e => e.date.slice(0,4)));
-    set.add(String(new Date().getFullYear()));
-    return [...set].sort((a,b) => b.localeCompare(a));
-  }
   const inYear = e => e.date.slice(0,4) === String(curYear);
 
-  function render() { renderYears(); renderHero(); renderStats(); renderMonths(); renderCats(); renderList(); }
+  function render() { renderYearNav(); renderHero(); renderStats(); renderMonths(); renderCats(); renderList(); renderYearCompare(); }
 
-  function renderYears() {
-    const box = document.getElementById("yearSwitch");
-    box.innerHTML = "";
-    yearsAvailable().forEach(y => {
-      const b = document.createElement("button");
-      b.textContent = y;
-      if (+y === curYear) b.className = "active";
-      b.onclick = () => { curYear = +y; monthFilter = null; render(); };
-      box.appendChild(b);
-    });
+  function renderYearNav() {
+    document.getElementById("yearCurrent").textContent = curYear;
+    const thisYear = new Date().getFullYear();
+    document.getElementById("yearNext").disabled = (curYear >= thisYear);
+  }
+
+  function totalForYear(y) {
+    const ys = String(y);
+    return entries.filter(e => e.date.slice(0,4) === ys).reduce((s,e) => s + entryTotal(e), 0);
+  }
+  // total for "year up to (MM-DD)"
+  function totalForYearYTD(y, mmdd) {
+    const ys = String(y);
+    return entries.filter(e => e.date.slice(0,4) === ys && e.date.slice(5) <= mmdd).reduce((s,e) => s + entryTotal(e), 0);
+  }
+
+  function renderYearCompare() {
+    const box = document.getElementById("yearCompare");
+    const label = document.getElementById("ycLabel");
+    const val = document.getElementById("ycValue");
+    const delta = document.getElementById("ycDelta");
+    const thisYear = new Date().getFullYear();
+    const prevYear = curYear - 1;
+    const prevTotal = totalForYear(prevYear);
+    if (prevTotal <= 0) { box.classList.add("hidden"); return; }
+
+    let cur, prev, labelText;
+    if (curYear === thisYear) {
+      const today = new Date();
+      const mmdd = String(today.getMonth()+1).padStart(2,"0") + "-" + String(today.getDate()).padStart(2,"0");
+      cur = totalForYearYTD(curYear, mmdd);
+      prev = totalForYearYTD(prevYear, mmdd);
+      labelText = "前年同期比";
+    } else {
+      cur = totalForYear(curYear);
+      prev = prevTotal;
+      labelText = "前年比";
+    }
+    if (prev <= 0) { box.classList.add("hidden"); return; }
+    box.classList.remove("hidden");
+    label.textContent = labelText;
+    const diff = cur - prev;
+    const pct = (diff / prev) * 100;
+    const sign = diff > 0 ? "+" : diff < 0 ? "−" : "±";
+    val.textContent = sign + Math.abs(pct).toFixed(1) + "%";
+    val.className = "yc-value " + (Math.abs(pct) < 2 ? "flat" : diff > 0 ? "up" : "down");
+    delta.textContent = "（" + sign + yen(Math.abs(diff)) + "）";
   }
 
   function renderHero() {
     document.getElementById("heroYear").textContent = curYear;
+    const isCurYear = curYear === new Date().getFullYear();
+    document.getElementById("heroLabel").innerHTML = isCurYear
+      ? '今年（<span id="heroYear">' + curYear + '</span>年）の支出'
+      : '<span id="heroYear">' + curYear + '</span>年の支出';
     document.getElementById("goalLabel").textContent = yen(goal);
     const total = entries.filter(inYear).reduce((s,e) => s + entryTotal(e), 0);
     document.getElementById("heroAmount").textContent = yen(total);
@@ -487,6 +550,10 @@
         const row = document.createElement("div");
         row.className = "entry";
         row.style.animationDelay = (idx*0.03)+"s";
+        const ship = e.shipping || 0;
+        const breakdown = ship > 0
+          ? `${yen(e.unitPrice)} × ${e.qty} + 送料 ${yen(ship)}`
+          : `${yen(e.unitPrice)} × ${e.qty}`;
         row.innerHTML = `
           <div class="e-cat" style="background:${c.color}"></div>
           <div class="e-mid">
@@ -495,7 +562,7 @@
           </div>
           <div class="e-right">
             <div class="e-total">${yen(entryTotal(e))}</div>
-            <div class="e-qty">${yen(e.unitPrice)} × ${e.qty}</div>
+            <div class="e-qty">${breakdown}</div>
           </div>`;
         row.onclick = () => openSheet(e);
         g.appendChild(row);
@@ -523,7 +590,8 @@
   function updateTotal() {
     const p = parseFloat(document.getElementById("fPrice").value)||0;
     const q = parseInt(document.getElementById("fQty").value)||0;
-    document.getElementById("totalPreview").textContent = yen(p*q);
+    const s = parseFloat(document.getElementById("fShip").value)||0;
+    document.getElementById("totalPreview").textContent = yen(p*q + s);
   }
   function openSheet(entry) {
     editingId = entry ? entry.id : null;
@@ -531,10 +599,12 @@
     document.getElementById("fName").value = entry ? entry.name : "";
     document.getElementById("fPrice").value = entry ? entry.unitPrice : "";
     document.getElementById("fQty").value = entry ? entry.qty : 1;
+    document.getElementById("fShip").value = entry && entry.shipping ? entry.shipping : "";
     document.getElementById("fDate").value = entry ? entry.date : todayStr();
     pickedCat = entry ? entry.category : "goods";
     renderCatPick(); updateTotal();
     document.getElementById("deleteBtn").classList.toggle("hidden", !entry);
+    document.getElementById("duplicateBtn").classList.toggle("hidden", !entry);
     overlay.classList.add("show");
   }
   function closeSheet(){ overlay.classList.remove("show"); }
@@ -543,16 +613,27 @@
     const name = document.getElementById("fName").value.trim() || "(名称未設定)";
     const price = parseFloat(document.getElementById("fPrice").value)||0;
     const qty = Math.max(1, parseInt(document.getElementById("fQty").value)||1);
+    const shipping = Math.max(0, parseFloat(document.getElementById("fShip").value)||0);
     const date = document.getElementById("fDate").value || todayStr();
     if (editingId) {
       const e = entries.find(x => x.id===editingId);
-      if (e) Object.assign(e, { name, unitPrice:price, qty, date, category:pickedCat });
+      if (e) Object.assign(e, { name, unitPrice:price, qty, shipping, date, category:pickedCat });
     } else {
-      entries.push({ id: "e"+Date.now()+Math.random().toString(36).slice(2,6), name, unitPrice:price, qty, date, category:pickedCat, createdAt:Date.now() });
+      entries.push({ id: "e"+Date.now()+Math.random().toString(36).slice(2,6), name, unitPrice:price, qty, shipping, date, category:pickedCat, createdAt:Date.now() });
     }
     saveEntries(); closeSheet(); render();
   }
   function deleteEntry() { entries = entries.filter(e => e.id !== editingId); saveEntries(); closeSheet(); render(); }
+  function duplicateEntry() {
+    // turn the current edit sheet into a "new entry" sheet with the same values, date reset to today
+    editingId = null;
+    document.getElementById("sheetTitle").textContent = "新しい記録";
+    document.getElementById("fDate").value = todayStr();
+    document.getElementById("deleteBtn").classList.add("hidden");
+    document.getElementById("duplicateBtn").classList.add("hidden");
+    const sheet = document.getElementById("sheet");
+    if (sheet) sheet.scrollTop = 0;
+  }
 
   const goalOverlay = document.getElementById("goalOverlay");
   document.getElementById("goalEditBtn").onclick = () => { document.getElementById("fGoal").value = goal; goalOverlay.classList.add("show"); };
@@ -594,10 +675,16 @@
   document.getElementById("cancelBtn").onclick = closeSheet;
   document.getElementById("saveBtn").onclick = saveEntry;
   document.getElementById("deleteBtn").onclick = deleteEntry;
+  document.getElementById("duplicateBtn").onclick = duplicateEntry;
   document.getElementById("clearFilter").onclick = () => { monthFilter=null; render(); };
+  document.getElementById("yearPrev").onclick = () => { curYear -= 1; monthFilter = null; render(); };
+  document.getElementById("yearNext").onclick = () => {
+    if (curYear < new Date().getFullYear()) { curYear += 1; monthFilter = null; render(); }
+  };
   overlay.onclick = e => { if (e.target===overlay) closeSheet(); };
   document.getElementById("fPrice").addEventListener("input", updateTotal);
   document.getElementById("fQty").addEventListener("input", updateTotal);
+  document.getElementById("fShip").addEventListener("input", updateTotal);
 
   load();
 })();
