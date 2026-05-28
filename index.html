@@ -552,7 +552,7 @@
         row.style.animationDelay = (idx*0.03)+"s";
         const ship = e.shipping || 0;
         const breakdown = ship > 0
-          ? `${yen(e.unitPrice)} × ${e.qty} + 送料 ${yen(ship)}`
+          ? `${yen(e.unitPrice)} × ${e.qty} + その他 ${yen(ship)}`
           : `${yen(e.unitPrice)} × ${e.qty}`;
         row.innerHTML = `
           <div class="e-cat" style="background:${c.color}"></div>
